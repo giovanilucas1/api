@@ -13,7 +13,7 @@ password = '^L7i_O5c#A2y'
 url_auth = "https://api-marketplace.paranabanco.com.br/v1/auth/token"
 url_saldo = "https://api-marketplace.paranabanco.com.br/v1/fgts/saque-aniversario/saldo-disponivel"
 
-# Taxas fixas
+# Taxas
 taxa_mensal = 0.0179
 taxa_anual = ((1 + taxa_mensal) ** 12 - 1) * 100
 
@@ -52,7 +52,14 @@ def consultar_saldo(token, cpf, quantidade_periodos=10):
 def validar_cpf():
     try:
         data = request.get_json()
-        cpf = data.get("contact", {}).get("document") or data.get("cpf")
+        print("📩 JSON recebido:", data)
+
+        # Tenta pegar o CPF de várias formas
+        cpf = None
+        if data.get("command") == "simular_fgts":
+            cpf = data.get("message", {}).get("text")
+        if not cpf:
+            cpf = data.get("contact", {}).get("document") or data.get("cpf")
 
         if not cpf or len(cpf) != 11 or not cpf.isdigit():
             return jsonify({
@@ -75,6 +82,7 @@ def validar_cpf():
         })
 
     except Exception as e:
+        print("❌ ERRO AO PROCESSAR:", e)
         return jsonify({
             "command": "erro",
             "message": f"❌ Erro ao processar CPF: {str(e)}"
@@ -83,6 +91,3 @@ def validar_cpf():
 @app.route("/", methods=["GET"])
 def status():
     return "✅ API ativa e esperando Webhook da Digisac."
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
