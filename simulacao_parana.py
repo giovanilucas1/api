@@ -74,15 +74,15 @@ def validar_cpf():
             "message": f"✅ CPF {cpf} validado com sucesso! Saldo: R$ {round(saldo['saldoTotal'], 2)}"
         })
 
-except Exception as e:
-    print("❌ ERRO AO PROCESSAR:", e)
-    return jsonify({
-        "command": "erro",
-        "message": f"❌ Erro ao processar CPF: {str(e)}"
-    })
-
+    except Exception as e:
+        return jsonify({
+            "command": "erro",
+            "message": f"❌ Erro ao processar CPF: {str(e)}"
+        })
 
 @app.route("/", methods=["GET"])
 def status():
     return "✅ API ativa e esperando Webhook da Digisac."
 
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
