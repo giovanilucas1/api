@@ -4,6 +4,9 @@ import datetime
 
 app = Flask(__name__)
 
+# Armazenamento em memória para debug
+logs = []
+
 # CONFIGURAÇÕES
 client_id = 'alcif-s-bellato'
 client_secret = '64y8cX5dmxYovd4tXTmed38Lbh5FMqJB'
@@ -96,23 +99,44 @@ def montar_resposta(saldo_data, quantidade_periodos):
 
 @app.route("/", methods=["GET"])
 def home():
-    return "✅ API FGTS via Digisac online!"
+    return "✅ API FGTS via Digisac online! Acesse /logs para ver requisições."
+
+@app.route("/logs", methods=["GET"])
+def ver_logs():
+    html = "<h2>📜 Logs recebidos via /webhook</h2><ul>"
+    for entry in logs:
+        html += f"<li><pre>{entry}</pre></li><hr>"
+    html += "</ul>"
+    return html
 
 @app.route("/webhook", methods=["POST"])
 def receber_digisac():
     try:
         data = request.get_json()
-        cpf = data.get("contact", {}).get("document")
-        quantidade = 10  # padrão fixo
+        logs.append(f"📥 Recebido: {data}")
+
+        # Tentativas para pegar o CPF
+        cpf = (
+            data.get("contact", {}).get("document")
+            or data.get("message", {}).get("text")
+            or data.get("cpf")
+        )
 
         if not cpf or len(cpf) != 11 or not cpf.isdigit():
-            return jsonify({"message": "❌ CPF inválido. Envie um CPF com 11 dígitos numéricos."})
+            logs.append("❌ CPF inválido ou não encontrado")
+            return jsonify({
+                "erro": True,
+                "mensagem": "❌ CPF inválido ou não encontrado.",
+                "debug": data
+            }), 400
 
+        quantidade = 10
         token = gerar_token()
         saldo_data = consultar_saldo(token, cpf, quantidade)
         resposta = montar_resposta(saldo_data, quantidade)
 
         if resposta["erro"]:
+            logs.append(f"⚠️ Resposta: {resposta['mensagem']}")
             return jsonify({"message": resposta["mensagem"]})
 
         resumo = resposta["resumo"]
@@ -128,10 +152,16 @@ def receber_digisac():
             f"{parcelas_txt}"
         )
 
+        logs.append(f"✅ Mensagem enviada: {mensagem}")
         return jsonify({"message": mensagem})
 
     except Exception as e:
-        return jsonify({"message": f"❌ Erro interno: {str(e)}"}), 500
+        logs.append(f"❌ Erro interno: {str(e)}")
+        return jsonify({
+            "erro": True,
+            "mensagem": "❌ Erro interno",
+            "detalhes": str(e)
+        }), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
