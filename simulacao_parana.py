@@ -5,50 +5,40 @@ app = Flask(__name__)
 @app.route("/", methods=["POST"])
 def webhook():
     try:
-        # Pega o corpo bruto da requisição (independente de estar certo)
-        raw_data = request.data.decode("utf-8", errors="replace")
-        print("📥 Corpo bruto recebido:\n", raw_data)
+        # 🔍 Mostra o corpo cru da requisição
+        raw = request.data.decode("utf-8", errors="replace")
+        print("🔍 RAW BODY RECEBIDO:\n", raw)
 
-        # Tenta converter pra JSON
+        # 📦 Tenta converter para JSON, mesmo que incompleto
         data = request.get_json(force=True, silent=True) or {}
-        print("📦 JSON decodificado:", data)
+        print("📦 JSON PARSEADO:", data)
 
-        # Verifica o comando
+        # 📌 Detecta comando (se for necessário)
         comando = data.get("command", "")
         print("📌 Comando recebido:", comando)
 
-        if comando != "simular_fgts":
-            return jsonify({
-                "command": "ignorado",
-                "message": "📭 Comando não é 'simular_fgts', ignorado."
-            })
-
-        # Captura o CPF de diferentes lugares possíveis
+        # 🧠 Tenta detectar CPF de várias formas
         cpf = data.get("cpf") or \
               data.get("message", {}).get("text") or \
               data.get("contact", {}).get("document")
 
         print("🧠 CPF detectado:", cpf)
 
-        # Validação básica do CPF
-        if not cpf or len(cpf) != 11 or not cpf.isdigit():
-            return jsonify({
-                "command": "cpf_invalido",
-                "message": "❌ CPF inválido. Envie um CPF com 11 dígitos numéricos."
-            })
-
+        # Só para teste: responde que chegou
         return jsonify({
-            "command": "cpf_valido",
-            "message": f"✅ CPF {cpf} validado com sucesso!"
+            "status": "ok",
+            "mensagem": "📬 Webhook recebido com sucesso!",
+            "comando": comando,
+            "cpf": cpf
         })
 
     except Exception as e:
-        print("❌ ERRO GERAL:", e)
+        print("❌ ERRO AO PROCESSAR:", str(e))
         return jsonify({
-            "command": "erro",
-            "message": f"❌ Erro ao processar requisição: {str(e)}"
-        })
+            "status": "erro",
+            "mensagem": f"❌ Erro ao processar webhook: {str(e)}"
+        }), 500
 
 @app.route("/", methods=["GET"])
 def status():
-    return "✅ API ativa, aguardando comando 'simular_fgts' do webhook."
+    return "✅ API de teste - aguardando Webhook da Digisac."
