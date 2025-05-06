@@ -1,1 +1,1 @@
-web: gunicorn simulacao_parana:app
+web: gunicorn main:app
